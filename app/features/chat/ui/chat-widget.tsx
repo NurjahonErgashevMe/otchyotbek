@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { ThinkLoading } from "./think-loading";
-import { sendMessage, generateGradesJSON } from "../api/chat-service";
+import { sendMessage } from "../api/chat-service";
 import { useJsonToExcel } from "../../../../hooks/useJsonToExcel";
 import { extractJsonFromMarkdown } from "../../../../lib/utils";
 import { Button } from "@/components/ui/button";
+
 
 interface Message {
   text: string;
@@ -21,6 +22,7 @@ export function ChatWidget() {
   const [jsonData, setJsonData] = useState<any>(null);
   const { downloadExcel } = useJsonToExcel();
 
+
   const handleSubmit = async (message: string) => {
     try {
       // Add user message immediately
@@ -29,50 +31,53 @@ export function ChatWidget() {
 
       // Normal message flow
       const response = await sendMessage(message);
-      
+
       // Check if response contains JSON
       const extractedJson = extractJsonFromMarkdown(response);
 
-      console.log(extractedJson , 'extractedJson')
+      console.log(extractedJson, "extractedJson");
       if (extractedJson) {
         setJsonData(extractedJson);
       }
-      
+
       setMessages((prev) => [...prev, { text: response, isBot: true }]);
 
       // // Check if this is a confirmation for JSON generation
-      // const isConfirmation = message.toLowerCase().includes("да") || 
+      // const isConfirmation = message.toLowerCase().includes("да") ||
       //                       message.toLowerCase().includes("верно") ||
       //                       message.toLowerCase().includes("правильно");
 
       // if (isConfirmation && lastTable) {
       //   // Generate JSON from the last table
       //   const jsonData = await generateGradesJSON(lastTable);
-      //   const jsonResponse = "Вот ваши данные в формате JSON:\n\n```json\n" + 
-      //                       JSON.stringify(jsonData?.json, null, 2) + 
+      //   const jsonResponse = "Вот ваши данные в формате JSON:\n\n```json\n" +
+      //                       JSON.stringify(jsonData?.json, null, 2) +
       //                       "\n```";
       //   setMessages((prev) => [...prev, { text: jsonResponse, isBot: true }]);
       //   setLastTable(null); // Reset the table after generating JSON
       // } else {
       //   // Normal message flow
       //   const response = await sendMessage(message);
-        
+
       //   // Check if the response contains a markdown table
-      //   if (response.includes("| №") && response.includes("|---")) {          
+      //   if (response.includes("| №") && response.includes("|---")) {
       //     if (response) {
       //       setLastTable(response);
       //     }
       //   } else {
       //     setLastTable(null);
       //   }
-        
+
       //   setMessages((prev) => [...prev, { text: response, isBot: true }]);
       // }
     } catch (error) {
       console.error("Error in chat:", error);
       setMessages((prev) => [
         ...prev,
-        { text: "Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.", isBot: true },
+        {
+          text: "Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.",
+          isBot: true,
+        },
       ]);
     } finally {
       setIsLoading(false);
@@ -85,7 +90,7 @@ export function ChatWidget() {
 
   const handleDownload = async () => {
     if (!jsonData) return;
-    
+
     setIsDownloading(true);
     try {
       const result = await downloadExcel(jsonData);
@@ -110,7 +115,9 @@ export function ChatWidget() {
               <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
                 <span className="text-black text-sm">AI</span>
               </div>
-              <div className="text-2xl font-semibold text-white">OTCHYOTBEK</div>
+              <div className="text-2xl font-semibold text-white">
+                OTCHYOTBEK
+              </div>
             </div>
             <div className="text-lg">
               Отправьте список оценок учеников, чтобы начать...
@@ -154,8 +161,19 @@ export function ChatWidget() {
                 </>
               ) : (
                 <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
                   </svg>
                   Скачать Excel
                 </>
