@@ -6,9 +6,10 @@ interface ChatMessage {
   content: string;
 }
 
-const genAI = new GoogleGenerativeAI(
-  process.env.GEMINI_API_KEY || "YOUR_API_KEY"
-);
+const API_KEY =
+  process.env.GEMINI_API_KEY || "AIzaSyCp7KAeFL7RSvL5ycEDqyGMNBheGrDcuTo";
+
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Keep chat history in memory (in production, you'd want to use a database)
 let chatHistory: ChatMessage[] = [];
@@ -172,7 +173,7 @@ function processGradesInput(text: string): string {
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
@@ -192,7 +193,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     // Add the combined message to history as a user message
     chatHistory.push({ role: "user", content: fullMessage });
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const chat = model.startChat({
       history: chatHistory.map((msg) => ({
