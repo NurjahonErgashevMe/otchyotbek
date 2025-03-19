@@ -6,13 +6,15 @@ interface ChatMessage {
   content: string;
 }
 
+interface RequestBody {
+  message: string;
+  history?: ChatMessage[];
+}
+
 const API_KEY =
   process.env.GEMINI_API_KEY || "AIzaSyCp7KAeFL7RSvL5ycEDqyGMNBheGrDcuTo";
 
 const genAI = new GoogleGenerativeAI(API_KEY);
-
-// Keep chat history in memory (in production, you'd want to use a database)
-let chatHistory: ChatMessage[] = [];
 
 const SYSTEM_PROMPT = `
 Ты - OTCHYOTBEK, специализированный помощник для создания отчетов по оценкам учеников СОР и СОЧ.
@@ -32,12 +34,12 @@ const SYSTEM_PROMPT = `
 - Если ученик отсутствовал на тесте, отметь это в таблице и добавь соответствующее поле в JSON.
 
 ### Отображение данных:
-- Имя ученика должно быть написано на узбекском языке, даже если в промпте оно указано на другом.
+- Имя ученика должно быть написано на узбекском языке, если в промпте оно не указано на другом.
 - Если количество оценок у учеников разное, добавляй "-" для отсутствующих оценок.
 - Средний балл считай только по имеющимся оценкам (игнорируя "-").
 - Для отсутствующих учеников отмечай "Отсутствовал" или "DQ" в таблице.
 - Используй формат таблицы Markdown для вывода данных:
-  
+
 #### Пример таблицы Markdown:
 | № | ФИО             | Задача 1 | Задача 2 | Задача 3 | Средний балл |
 |---|------------------|----------|----------|----------|--------------|
@@ -152,7 +154,6 @@ function convertWordToNumber(word: string): number | null {
     девять: 9,
     десять: 10,
   };
-
   const normalized = word.toLowerCase().trim();
   return numberWords[normalized] || null;
 }
@@ -167,7 +168,6 @@ function processGradesInput(text: string): string {
     });
     return processedWords.join(" ");
   });
-
   return processedLines.join("\n");
 }
 
@@ -177,55 +177,48 @@ export async function POST(req: Request): Promise<NextResponse> {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const body = await req.json();
+    const body: RequestBody = await req.json();
     if (!body.message) {
       throw new Error("Message is required in request body");
     }
 
-    const { message } = body;
+    const { message, history = [] } = body;
 
-    // Process any word numbers in the input
     const processedMessage = processGradesInput(message);
 
-    // Combine SYSTEM_PROMPT with the user message
-    const fullMessage = `${SYSTEM_PROMPT}\n\nПользовательский запрос:\n${processedMessage}`;
-
-    // Add the combined message to history as a user message
-    chatHistory.push({ role: "user", content: fullMessage });
+    const fullHistory: ChatMessage[] = [
+      { role: "user", content: SYSTEM_PROMPT },
+      ...history,
+      { role: "user", content: processedMessage },
+    ];
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const chat = model.startChat({
-      history: chatHistory.map((msg) => ({
+      history: fullHistory.map((msg) => ({
         role: msg.role,
         parts: [{ text: msg.content }],
       })),
     });
 
-    const result = await chat.sendMessage(processedMessage); // Send only the processed user input
+    const result = await chat.sendMessage(processedMessage);
     const response = await result.response;
     const text = await response.text();
 
-    // Add assistant response to history
-    chatHistory.push({ role: "model", content: text });
-
-    return NextResponse.json({ text });
-
-    // return NextResponse.json({
-    //   text: '```json\n{\n "date": "21.03.2025",\n "teacher": "Timov Timur Alixanovich",\n "maxScores": {\n "task1": 7,\n "task2": 2,\n "task3": 12\n },\n "students": [\n {\n "id": 1,\n "name": "Islom Maxachev",\n "scores": {\n "task1": 5,\n "task2": 3,\n "task3": 10\n },\n "totalScore": 18,\n "percentage": 72\n },\n {\n "id": 2,\n "name": "Jon Jons",\n "scores": {\n "task1": 3,\n "task2": 4,\n "task3": 6\n },\n "totalScore": 13,\n "percentage": 52\n }\n ],\n "averageScores": {\n "task1": 71.43,\n "task2": 175,\n "task3": 66.67\n }\n}\n```\n\nГотово! Вам подходит такой JSON? Если нужно, можно внести правки.\n',
-    // });
+    return NextResponse.json({
+      text,
+      history: [
+        ...history,
+        { role: "user", content: processedMessage },
+        { role: "model", content: text },
+      ],
+    });
   } catch (error) {
     console.error("Error in chat route:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
-    const errorStack = error instanceof Error ? error.stack : undefined;
-
     return NextResponse.json(
-      {
-        error: "Failed to process your request",
-        message: errorMessage,
-        stack: errorStack,
-      },
+      { error: "Failed to process your request", message: errorMessage },
       { status: 500 }
     );
   }

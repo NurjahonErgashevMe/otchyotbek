@@ -1,18 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { ThinkLoading } from "./think-loading";
-import { sendMessage } from "../api/chat-service";
 import { useJsonToExcel } from "../../../../hooks/useJsonToExcel";
 import { extractJsonFromMarkdown } from "../../../../lib/utils";
 import { Button } from "@/components/ui/button";
 
-
 interface Message {
-  text: string;
-  isBot: boolean;
+  role: "user" | "model";
+  content: string;
 }
 
 export function ChatWidget() {
@@ -22,61 +20,42 @@ export function ChatWidget() {
   const [jsonData, setJsonData] = useState<any>(null);
   const { downloadExcel } = useJsonToExcel();
 
-
   const handleSubmit = async (message: string) => {
     try {
-      // Add user message immediately
-      setMessages((prev) => [...prev, { text: message, isBot: false }]);
+      setMessages((prev) => [...prev, { content: message, role: "user" }]);
       setIsLoading(true);
 
-      // Normal message flow
-      const response = await sendMessage(message);
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          history: messages,
+        }),
+      });
 
-      // Check if response contains JSON
-      const extractedJson = extractJsonFromMarkdown(response);
+      const data = await response.json();
 
-      console.log(extractedJson, "extractedJson");
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to get response");
+      }
+
+      const { text, history } = data;
+
+      setMessages((prev) => [...prev, { content: text, role: "model" }]);
+
+      const extractedJson = extractJsonFromMarkdown(text);
       if (extractedJson) {
         setJsonData(extractedJson);
       }
-
-      setMessages((prev) => [...prev, { text: response, isBot: true }]);
-
-      // // Check if this is a confirmation for JSON generation
-      // const isConfirmation = message.toLowerCase().includes("да") ||
-      //                       message.toLowerCase().includes("верно") ||
-      //                       message.toLowerCase().includes("правильно");
-
-      // if (isConfirmation && lastTable) {
-      //   // Generate JSON from the last table
-      //   const jsonData = await generateGradesJSON(lastTable);
-      //   const jsonResponse = "Вот ваши данные в формате JSON:\n\n```json\n" +
-      //                       JSON.stringify(jsonData?.json, null, 2) +
-      //                       "\n```";
-      //   setMessages((prev) => [...prev, { text: jsonResponse, isBot: true }]);
-      //   setLastTable(null); // Reset the table after generating JSON
-      // } else {
-      //   // Normal message flow
-      //   const response = await sendMessage(message);
-
-      //   // Check if the response contains a markdown table
-      //   if (response.includes("| №") && response.includes("|---")) {
-      //     if (response) {
-      //       setLastTable(response);
-      //     }
-      //   } else {
-      //     setLastTable(null);
-      //   }
-
-      //   setMessages((prev) => [...prev, { text: response, isBot: true }]);
-      // }
     } catch (error) {
       console.error("Error in chat:", error);
       setMessages((prev) => [
         ...prev,
         {
-          text: "Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.",
-          isBot: true,
+          role: "model",
+          content:
+            "Извините, произошла ошибка. Пожалуйста, попробуйте еще раз.",
         },
       ]);
     } finally {
@@ -127,8 +106,8 @@ export function ChatWidget() {
         {messages.map((message, index) => (
           <ChatMessage
             key={index}
-            message={message.text}
-            isBot={message.isBot}
+            message={message.content}
+            isBot={message.role === "model"}
           />
         ))}
         {isLoading && (

@@ -7,6 +7,7 @@ import { Mic, Send, Square, StopCircle } from "lucide-react";
 import SpeechRecognition, {
   useSpeechRecognition,
 } from "react-speech-recognition";
+import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
@@ -26,7 +27,7 @@ export function ChatInput({ onSubmit, isLoading, onStop }: ChatInputProps) {
     finalTranscript,
   } = useSpeechRecognition({
     clearTranscriptOnListen: true,
-    transcribing,
+    // transcribing,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,16 +60,10 @@ export function ChatInput({ onSubmit, isLoading, onStop }: ChatInputProps) {
 
   const toggleListening = () => {
     if (listening) {
-      if (!transcribing) {
-        return;
-      }
       setTranscribing(false);
       SpeechRecognition.stopListening();
     } else {
       try {
-        if (transcribing) {
-          return;
-        }
         setTranscribing(true);
         // resetTranscript();
         SpeechRecognition.startListening({
@@ -84,7 +79,7 @@ export function ChatInput({ onSubmit, isLoading, onStop }: ChatInputProps) {
   useEffect(() => {
     if (finalTranscript.trim()) {
       setMessage((prev) => prev + finalTranscript);
-      resetTranscript()
+      resetTranscript();
     }
   }, [finalTranscript]);
 
@@ -108,15 +103,17 @@ export function ChatInput({ onSubmit, isLoading, onStop }: ChatInputProps) {
           />
           <button
             type="button"
-            className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${
+            className={cn(
+              `absolute p-2 w-12 rounded-lg right-3 top-1/2 -translate-y-1/2 transition-colors cursor-pointer`,
               listening
                 ? "text-red-500 hover:text-red-400"
-                : "text-white/50 hover:text-white/80"
-            }`}
+                : "text-white/50 hover:text-white/80",
+              listening ? "bg-red-500" : "bg-white"
+            )}
             disabled={isLoading}
             onClick={toggleListening}
           >
-            {listening ? <StopCircle size={22} /> : <Mic size={22} />}
+            {listening ? <StopCircle size={30} color="white"/> : <Mic size={30} color="black" />}
           </button>
         </div>
         {isLoading ? (
