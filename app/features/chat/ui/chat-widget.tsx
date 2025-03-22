@@ -4,14 +4,11 @@ import { useState } from "react";
 import { ChatInput } from "./chat-input";
 import { ChatMessage } from "./chat-message";
 import { ThinkLoading } from "./think-loading";
-import { useJsonToExcel } from "../../../../hooks/useJsonToExcel";
-import { extractJsonFromMarkdown } from "../../../../lib/utils";
+import { useJsonToExcel } from "@/hooks/useJsonToExcel";
+import { extractJsonFromMarkdown } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-interface Message {
-  role: "user" | "model";
-  content: string;
-}
+import { Message } from "../types";
+import { sendMessage } from "../api/chat-service";
 
 export function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -25,20 +22,7 @@ export function ChatWidget() {
       setMessages((prev) => [...prev, { content: message, role: "user" }]);
       setIsLoading(true);
 
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message,
-          history: messages,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to get response");
-      }
+      const data = await sendMessage(message, messages);
 
       const { text, history } = data;
 

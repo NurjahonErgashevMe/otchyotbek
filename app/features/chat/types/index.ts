@@ -12,3 +12,8 @@ export interface FormattedGrades {
   students: StudentGrade[];
   isFormatted: boolean;
 }
+
+export interface Message {
+  role: "user" | "model";
+  content: string;
+}

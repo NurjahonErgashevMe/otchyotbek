@@ -12,8 +12,7 @@ interface RequestBody {
 }
 
 const API_KEY =
-  process.env.OPENROUTER_API_KEY ||
-  "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";
+  process.env.OPENROUTER_API_KEY;
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",

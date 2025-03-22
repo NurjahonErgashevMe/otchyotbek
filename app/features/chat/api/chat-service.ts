@@ -1,11 +1,21 @@
-export async function sendMessage(message: string): Promise<string> {
+import { Message } from "../types";
+
+interface SendMessageResponse {
+  text: string;
+  history: Message[];
+}
+
+export async function sendMessage(
+  message: string,
+  history: Message[]
+): Promise<SendMessageResponse> {
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, history }),
     });
 
     if (!response.ok) {
@@ -13,7 +23,7 @@ export async function sendMessage(message: string): Promise<string> {
     }
 
     const data = await response.json();
-    return data.text;
+    return data;
   } catch (error) {
     console.error("Error sending message:", error);
     throw error;
