@@ -95,9 +95,7 @@ interface Score {
 interface Student {
   id: number;
   name: string;
-  scores: Score;
-  totalScore: number;
-  percentage: number;
+  scores: Score
 }
 
 interface JsonData {

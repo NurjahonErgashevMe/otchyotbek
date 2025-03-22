@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import { NextResponse } from "next/server";
 
 interface ChatMessage {
@@ -12,9 +12,13 @@ interface RequestBody {
 }
 
 const API_KEY =
-  process.env.GEMINI_API_KEY || "AIzaSyCp7KAeFL7RSvL5ycEDqyGMNBheGrDcuTo";
+  process.env.OPENROUTER_API_KEY ||
+  "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";
 
-const genAI = new GoogleGenerativeAI(API_KEY);
+const openai = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: API_KEY,
+});
 
 const SYSTEM_PROMPT = `
 Ты - OTCHYOTBEK, специализированный помощник для создания отчетов по оценкам учеников СОР и СОЧ.
@@ -88,9 +92,7 @@ JSON должен быть структурирован следующим об�
         "task3": 8,
         "task4": 12,
         "task5": 10
-      },
-      "totalScore": 50,
-      "percentage": 100
+      }
     },
     {
       "id": 2,
@@ -102,8 +104,6 @@ JSON должен быть структурирован следующим об�
         "task4": 8,
         "task5": 8
       },
-      "totalScore": 40,
-      "percentage": 80
     },
     {
       "id": 3,
@@ -115,8 +115,6 @@ JSON должен быть структурирован следующим об�
         "task4": 0,
         "task5": 0
       },
-      "totalScore": 0,
-      "percentage": 0,
       "disqualified": true
     }
   ]
@@ -131,50 +129,15 @@ JSON должен быть структурирован следующим об�
    - **id** — порядковый номер ученика.
    - **name** — имя ученика (на узбекском языке с использованием латиницы).
    - **scores** — баллы за каждую задачу. Для отсутствующих учеников все баллы должны быть 0.
-   - **totalScore** — сумма всех баллов ученика (для отсутствующих учеников = 0).
-   - **percentage** — процент от максимального возможного балла (для отсутствующих учеников = 0).
    - **disqualified** — если ученик отсутствовал, установи значение \`true\` и все его баллы в 0.
 
 Если пользователь сообщает, что какой-то ученик отсутствовал или не был на тесте, обязательно добавь для него поле "disqualified": true и установи все его баллы, totalScore и percentage в 0.
 `;
 
-function convertWordToNumber(word: string): number | null {
-  const numberWords: { [key: string]: number } = {
-    один: 1,
-    одна: 1,
-    раз: 1,
-    два: 2,
-    две: 2,
-    три: 3,
-    четыре: 4,
-    пять: 5,
-    шесть: 6,
-    семь: 7,
-    восемь: 8,
-    девять: 9,
-    десять: 10,
-  };
-  const normalized = word.toLowerCase().trim();
-  return numberWords[normalized] || null;
-}
-
-function processGradesInput(text: string): string {
-  const lines = text.split("\n");
-  let processedLines = lines.map((line) => {
-    const words = line.split(/\s+/);
-    const processedWords = words.map((word) => {
-      const numberValue = convertWordToNumber(word);
-      return numberValue !== null ? numberValue.toString() : word;
-    });
-    return processedWords.join(" ");
-  });
-  return processedLines.join("\n");
-}
-
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     if (!API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+      throw new Error("OPENROUTER_API_KEY is not configured");
     }
 
     const body: RequestBody = await req.json();
@@ -184,32 +147,28 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const { message, history = [] } = body;
 
-    const processedMessage = processGradesInput(message);
-
     const fullHistory: ChatMessage[] = [
       { role: "user", content: SYSTEM_PROMPT },
       ...history,
-      { role: "user", content: processedMessage },
+      { role: "user", content: message },
     ];
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    const chat = model.startChat({
-      history: fullHistory.map((msg) => ({
-        role: msg.role,
-        parts: [{ text: msg.content }],
+    const completion = await openai.chat.completions.create({
+      model: "google/gemini-2.0-flash-lite-preview-02-05:free",
+      messages: fullHistory.map((msg) => ({
+        role: msg.role === "user" ? "user" : "assistant",
+        content: msg.content,
       })),
+      max_tokens: 3500,
     });
 
-    const result = await chat.sendMessage(processedMessage);
-    const response = await result.response;
-    const text = await response.text();
+    const text = completion.choices[0].message.content;
 
     return NextResponse.json({
       text,
       history: [
         ...history,
-        { role: "user", content: processedMessage },
+        { role: "user", content: message },
         { role: "model", content: text },
       ],
     });

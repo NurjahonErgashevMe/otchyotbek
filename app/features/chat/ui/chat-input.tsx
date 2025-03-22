@@ -17,7 +17,6 @@ interface ChatInputProps {
 
 export function ChatInput({ onSubmit, isLoading, onStop }: ChatInputProps) {
   const [message, setMessage] = useState("");
-  const [transcribing, setTranscribing] = useState(false);
   const {
     transcript,
     listening,
@@ -60,12 +59,9 @@ export function ChatInput({ onSubmit, isLoading, onStop }: ChatInputProps) {
 
   const toggleListening = () => {
     if (listening) {
-      setTranscribing(false);
       SpeechRecognition.stopListening();
     } else {
       try {
-        setTranscribing(true);
-        // resetTranscript();
         SpeechRecognition.startListening({
           language: "ru-RU",
           continuous: true,
